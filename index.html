@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Market Stock</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" />
+  <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+  <div id="root" class="p-6"></div>
+
+  <script type="text/javascript">
+    const { useState, useEffect } = React;
+    const { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } = Recharts;
+
+    function Dashboard() {
+      const [data, setData] = useState([]);
+      const [stockValue, setStockValue] = useState(0);
+      const [tresorerie, setTresorerie] = useState(0);
+
+      useEffect(() => {
+        const sheetId = "18UU3PS2uIJQq2agnbhzvrhn-qWA3ZTOFe4q6OMkHe_k";
+
+        fetch(`https://opensheet.elk.sh/${sheetId}/Compabilité`)
+          .then(res => res.json())
+          .then(rows => {
+            const cleanData = rows
+              .filter(row => row["📅 Date"] && row["📈 Bénéfice net cumulé"])
+              .map(row => ({
+                date: row["📅 Date"],
+                ventes: parseFloat(row["💵 Total des ventes"] || 0),
+                depenses: parseFloat(row["💸 Total des dépenses / achats"] || 0),
+                benefice: parseFloat(row["📈 Bénéfice net cumulé"] || 0),
+                tresorerie: parseFloat(row["Trésorerie"] || 0),
+              }));
+            setData(cleanData);
+            setTresorerie(cleanData.at(-1)?.tresorerie || 0);
+          });
+
+        fetch(`https://opensheet.elk.sh/${sheetId}/Stock`)
+          .then(res => res.json())
+          .then(rows => {
+            const totalStock = rows.reduce((acc, row) => acc + parseFloat(row["💰 Total Stock (DA)"] || 0), 0);
+            setStockValue(totalStock);
+          });
+      }, []);
+
+      const totalVentes = data.reduce((acc, d) => acc + d.ventes, 0);
+      const totalDepenses = data.reduce((acc, d) => acc + d.depenses, 0);
+      const totalBenef = data.reduce((acc, d) => acc + d.benefice, 0);
+
+      return React.createElement("div", { className: "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" },
+        card("💵 Total des ventes", totalVentes),
+        card("💸 Total des dépenses", totalDepenses),
+        card("📈 Bénéfice net", totalBenef),
+        card("💰 Trésorerie", tresorerie),
+        card("📦 Valeur totale du stock", stockValue),
+        React.createElement("div", { className: "col-span-3 bg-white p-4 rounded shadow" },
+          React.createElement("h2", { className: "text-xl font-bold mb-4" }, "📊 Évolution des bénéfices"),
+          React.createElement(ResponsiveContainer, { width: "100%", height: 300 },
+            React.createElement(LineChart, {
+              data: data,
+              margin: { top: 5, right: 30, left: 20, bottom: 5 }
+            },
+              React.createElement(XAxis, { dataKey: "date" }),
+              React.createElement(YAxis, null),
+              React.createElement(Tooltip, null),
+              React.createElement(Legend, null),
+              React.createElement(Line, { type: "monotone", dataKey: "benefice", stroke: "#4ade80" })
+            )
+          )
+        )
+      );
+    }
+
+    function card(title, value) {
+      return React.createElement("div", { className: "bg-white p-4 rounded shadow" },
+        React.createElement("h2", { className: "text-xl font-bold" }, title),
+        React.createElement("p", { className: "text-2xl mt-2" }, `${value.toLocaleString()} DA`)
+      );
+    }
+
+    ReactDOM.render(
+      React.createElement(Dashboard),
+      document.getElementById("root")
+    );
+  </script>
+</body>
+</html>
